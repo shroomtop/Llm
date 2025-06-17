@@ -18,19 +18,40 @@
   <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
   <style>
-    /* graceful-fallback helpers */
-    [x-cloak]{display:none}
-    /* top progress bar */
-    #dlBar{transition:width .2s}
+    /* Bottom progress bar */
+    #dlBarWrap {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 50;
+      background: rgba(30,41,59,0.95); /* slate-800, nearly opaque */
+      pointer-events: none;
+      transition: opacity .4s;
+    }
+    #dlBar {
+      height: 6px;
+      background: linear-gradient(90deg,#22d3ee,#10b981);
+      width: 0;
+      transition: width .15s;
+      border-radius: 0 0 6px 6px;
+    }
+    #dlBarText {
+      text-align: center;
+      font-size: 0.92rem;
+      color: #94a3b8;
+      margin: 0.3em 0 0.15em 0;
+      font-family: ui-monospace,monospace;
+      letter-spacing: 0.03em;
+    }
+    #dlBarWrap.hide { opacity:0; }
   </style>
-
-  <!-- Embedded meta-files (LICENSE.txt, README.txt, VERSION.txt, manifest.json, promptmeta.json) -->
-  <!-- …(exact same content as previous version, omitted here for brevity)… -->
 </head>
 <body class="min-h-screen flex flex-col bg-slate-900 text-slate-100 antialiased">
 
-  <!-- progress bar -->
-  <div id="dlBar" class="h-1 bg-emerald-500 w-0" role="progressbar" aria-label="model download progress"></div>
+  <!-- BOTTOM PROGRESS BAR -->
+  <div id="dlBarWrap">
+    <div id="dlBar"></div>
+    <div id="dlBarText">Downloading model…</div>
+  </div>
 
   <header class="py-4 text-center">
     <h1 class="text-3xl font-bold tracking-tight">Shroomtop420™ Chatbot</h1>
@@ -49,18 +70,19 @@
   <!-- WebLLM + app logic -->
   <script type="module">
     import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.79";
-
-    const MODEL_ID = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC";          // swap here to try lighter models
+    const MODEL_ID = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC";
     const chatEl   = document.getElementById("chat");
     const form     = document.getElementById("inputForm");
     const promptIn = document.getElementById("prompt");
+    const dlBarWrap= document.getElementById("dlBarWrap");
     const dlBar    = document.getElementById("dlBar");
-    const msgs     = [];   // persistent chat transcript
+    const dlBarTxt = document.getElementById("dlBarText");
+    const msgs     = [];
 
-    let engine;            // WebLLM engine instance
+    let engine;
 
-    /* ---------- UI helpers ---------- */
-    const escape = s => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    // HTML escape (security best-practice)
+    const escape = s => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
 
     function render() {
       chatEl.innerHTML = msgs.map(m =>
@@ -75,48 +97,47 @@
     async function streamReply() {
       const reply = { role:"assistant", content:"" };
       msgs.push(reply); render();
-
       const stream = await engine.chat.completions.create({
-        messages: msgs,
-        stream:   true
+        messages: msgs, stream: true
       });
-
       for await (const {choices:[{delta:{content=''}}]} of stream) {
-        reply.content += content;
-        render();
+        reply.content += content; render();
       }
     }
 
-    /* ---------- Initialise engine ---------- */
+    // --- INITIALIZE: Model, Progress Bar, UI ---
     (async () => {
       promptIn.disabled = true;
       promptIn.placeholder = "Downloading model… first load may take a few minutes.";
 
       engine = new webllm.Engine();
 
-      /* live download % + bar */
+      // Live download progress callback
       engine.setInitProgressCallback(({progress,total})=>{
         const pct = total ? Math.round(progress/total*100) : 0;
-        promptIn.placeholder = `Downloading… ${pct} %`;
         dlBar.style.width = pct + "%";
+        dlBarTxt.textContent = pct > 0
+          ? `Downloading model… ${pct} %`
+          : "Downloading model…";
       });
 
       try {
         await engine.init(MODEL_ID);
       } catch (e) {
         promptIn.placeholder = "❌ Model failed. Check console.";
-        console.error(e);
+        dlBarTxt.textContent = "❌ Download failed.";
+        dlBar.style.background = "#ef4444";
         return;
       }
 
-      /* ready */
-      dlBar.classList.add("opacity-0");                 // hide bar
+      // Model ready: hide bar, enable input
+      setTimeout(()=>dlBarWrap.classList.add("hide"), 600);
       promptIn.placeholder = "Ask me anything…";
       promptIn.disabled = false;
       promptIn.focus();
     })();
 
-    /* ---------- User submits ---------- */
+    // --- Chat submit ---
     form.addEventListener("submit", async e => {
       e.preventDefault();
       const text = promptIn.value.trim();

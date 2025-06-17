@@ -1,0 +1,140 @@
+<!--LEGAL-DNA:{"jurisdiction":"US/MN/Baxter","export_tag":"EAR99","spdx":"MIT","artifact_time":1750137204410,"def_pub":"OIN","consent_req":true,"city":"Baxter"}-->
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Shroomtop420™ No-API Chatbot</title>
+
+  <!-- CSP / hardening -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' https://cdn.jsdelivr.net https://esm.run;
+                 style-src  'self' https://cdn.jsdelivr.net 'unsafe-inline';
+                 script-src 'self' https://cdn.jsdelivr.net https://esm.run 'unsafe-inline';
+                 img-src 'self' data:;
+                 connect-src *;
+                 upgrade-insecure-requests;">
+
+  <!-- Tailwind Play CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- Inline critical styles for graceful fallback -->
+  <style>[x-cloak]{display:none}</style>
+
+  <!-- LICENSE.txt, README.txt, VERSION.txt, manifest.json & promptmeta.json (embedded) -->
+  <!--
+  ========================= LICENSE.txt =========================
+  MIT License © 2025 Shroomtop420™ (Alex Moberg)
+  Permission is hereby granted… (full MIT text omitted for brevity)
+
+  ========================= README.txt =========================
+  Shroomtop420™ No-API Chatbot
+  ----------------------------------------------
+  • Runs TinyLlama 1.1B (q4f16) locally via WebLLM  
+  • Requirements: WebGPU-enabled browser, ~2 GB RAM free  
+  • Supports streaming replies, dark-mode, offline cache  
+  • All resources are inline / CDN; zero build-step needed  
+
+  ========================= VERSION.txt =========================
+  1.0.0 — 2025-06-17
+
+  ========================= manifest.json =========================
+  {
+    "name":"Shroomtop420™ No-API Chatbot",
+    "short_name":"S420-Chat",
+    "start_url":"./",
+    "display":"standalone",
+    "theme_color":"#0f172a",
+    "background_color":"#0f172a"
+  }
+
+  ========================= promptmeta.json =========================
+  {
+    "system_prompt":"You are a friendly assistant.",
+    "model":"TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+    "author":"Shroomtop420™"
+  }
+  -->
+</head>
+<body class="min-h-screen flex flex-col bg-slate-900 text-slate-100 antialiased">
+  <header class="py-4 text-center">
+    <h1 class="text-3xl font-bold tracking-tight">Shroomtop420™ Chatbot</h1>
+    <p class="text-slate-400">Runs 100 % in your browser – no keys, no servers.</p>
+  </header>
+
+  <main id="chat" class="flex-1 overflow-y-auto px-4 space-y-4"></main>
+
+  <form id="inputForm" class="p-4 border-t border-slate-700">
+    <label class="sr-only" for="prompt">Prompt</label>
+    <input id="prompt" type="text" required
+           class="w-full px-4 py-3 rounded-lg bg-slate-800 placeholder-slate-500 focus:outline-none"
+           placeholder="Ask me anything…" autocomplete="off">
+  </form>
+
+  <!-- WebLLM + app logic -->
+  <script type="module">
+    import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.79";
+
+    const MODEL_ID = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC";
+    const chatEl   = document.getElementById("chat");
+    const form     = document.getElementById("inputForm");
+    const promptIn = document.getElementById("prompt");
+    const msgs     = [];   // persistent chat transcript
+
+    let engine;           // WebLLM engine instance
+
+    /** Render chat messages */
+    function render() {
+      chatEl.innerHTML = msgs.map(m =>
+        `<div class="flex ${m.role==='user'?'justify-end':''}">
+           <div class="px-4 py-2 rounded-lg max-w-prose
+               ${m.role==='user'?'bg-blue-600':'bg-slate-700'}">
+             ${m.content.replace(/\n/g,'<br>')}
+           </div>
+         </div>`
+      ).join("");
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    /** Stream assistant reply */
+    async function streamReply() {
+      const reply = { role:"assistant", content:"" };
+      msgs.push(reply); render();
+
+      // create a streaming completion
+      const stream = await engine.chat.completions.create({
+        messages: msgs,
+        stream:   true
+      });
+
+      for await (const chunk of stream) {
+        reply.content += chunk.choices[0]?.delta?.content || "";
+        render();
+      }
+    }
+
+    /** Init WebLLM engine & UI */
+    (async () => {
+      promptIn.disabled = true;
+      promptIn.placeholder = "Downloading model… first load may take a few minutes.";
+      engine = new webllm.Engine();
+      await engine.init(MODEL_ID);
+      promptIn.placeholder = "Ask me anything…";
+      promptIn.disabled = false;
+      promptIn.focus();
+    })();
+
+    /** Handle user submits */
+    form.addEventListener("submit", async e => {
+      e.preventDefault();
+      const text = promptIn.value.trim(); if (!text) return;
+      msgs.push({ role:"user", content:text }); promptIn.value = ""; render();
+      try { await streamReply(); }
+      catch (err) {
+        msgs.push({ role:"assistant", content:`⚠️ Error: ${err.message}` });
+        render();
+      }
+    });
+  </script>
+</body>
+</html>

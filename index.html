@@ -1,155 +1,185 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Shroomtop420™ No-API Chatbot</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shroomtop420™ No-API Chatbot</title>
 
-  <!-- CSP / hardening -->
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' https://cdn.jsdelivr.net https://esm.run;
-                 style-src  'self' https://cdn.jsdelivr.net 'unsafe-inline';
-                 script-src 'self' https://cdn.jsdelivr.net https://esm.run 'unsafe-inline';
-                 img-src 'self' data:;
-                 connect-src *;
-                 upgrade-insecure-requests;">
+<!-- ─────── CSP / hardening ─────── -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' https://cdn.jsdelivr.net https://esm.run;
+               style-src  'self' https://cdn.jsdelivr.net 'unsafe-inline';
+               script-src 'self' https://cdn.jsdelivr.net https://esm.run 'unsafe-inline';
+               img-src 'self' data:;
+               connect-src *;
+               upgrade-insecure-requests">
 
-  <!-- Tailwind Play CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<!-- Tailwind v4 Play CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 
-  <style>
-    /* Bottom progress bar */
-    #dlBarWrap {
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      z-index: 50;
-      background: rgba(30,41,59,0.95); /* slate-800, nearly opaque */
-      pointer-events: none;
-      transition: opacity .4s;
-    }
-    #dlBar {
-      height: 6px;
-      background: linear-gradient(90deg,#22d3ee,#10b981);
-      width: 0;
-      transition: width .15s;
-      border-radius: 0 0 6px 6px;
-    }
-    #dlBarText {
-      text-align: center;
-      font-size: 0.92rem;
-      color: #94a3b8;
-      margin: 0.3em 0 0.15em 0;
-      font-family: ui-monospace,monospace;
-      letter-spacing: 0.03em;
-    }
-    #dlBarWrap.hide { opacity:0; }
-  </style>
+<style>
+/* Bottom progress UI */
+#dlBarWrap{position:fixed;left:0;right:0;bottom:0;z-index:50;background:rgba(30,41,59,.96);
+           pointer-events:none;transition:opacity .4s}
+#dlBar{height:6px;background:linear-gradient(90deg,#22d3ee,#10b981);width:0;transition:width .15s}
+#dlBarText{font:600 0.9rem/1 ui-monospace,monospace;text-align:center;color:#94a3b8;
+           margin:0.35em 0 0.2em}
+#dlBarWrap.hide{opacity:0}
+[x-cloak]{display:none}
+</style>
+
+<!-- ─────── Embedded meta-files ───────
+===================== LICENSE.txt =====================
+MIT License
+
+Copyright (c) 2025 Alex Moberg / Shroomtop420™
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+(Full MIT text continues…)
+
+===================== README.txt ======================
+Shroomtop420™ No-API Chatbot
+• Runs TinyLlama-1.1B (q4f16) locally via WebLLM (WebGPU)
+• Requirements: WebGPU-enabled browser, ~2 GB free RAM
+• First load streams ~700 MB; afterwards runs fully offline
+• Single-file HTML, TailwindCDN, Inline JS – no build step
+
+===================== VERSION.txt =====================
+1.1.0 — 2025-06-17
+
+===================== manifest.json ===================
+{
+  "name":"Shroomtop420™ No-API Chatbot",
+  "short_name":"S420-Chat",
+  "start_url":"./",
+  "display":"standalone",
+  "theme_color":"#0f172a",
+  "background_color":"#0f172a"
+}
+
+===================== promptmeta.json =================
+{
+  "system_prompt":"You are a friendly assistant.",
+  "model":"TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+  "author":"Shroomtop420™"
+}
+-->
 </head>
 <body class="min-h-screen flex flex-col bg-slate-900 text-slate-100 antialiased">
 
-  <!-- BOTTOM PROGRESS BAR -->
-  <div id="dlBarWrap">
-    <div id="dlBar"></div>
-    <div id="dlBarText">Downloading model…</div>
-  </div>
+<!-- Bottom progress bar -->
+<div id="dlBarWrap">
+  <div id="dlBar"></div>
+  <div id="dlBarText">Downloading model…</div>
+</div>
 
-  <header class="py-4 text-center">
-    <h1 class="text-3xl font-bold tracking-tight">Shroomtop420™ Chatbot</h1>
-    <p class="text-slate-400">Runs 100 % in your browser – no keys, no servers.</p>
-  </header>
+<header class="py-4 text-center">
+  <h1 class="text-3xl font-bold tracking-tight">Shroomtop420™ Chatbot</h1>
+  <p class="text-slate-400">Runs 100 % in your browser – no keys, no servers.</p>
+</header>
 
-  <main id="chat" class="flex-1 overflow-y-auto px-4 space-y-4"></main>
+<main id="chat" class="flex-1 overflow-y-auto px-4 space-y-4"></main>
 
-  <form id="inputForm" class="p-4 border-t border-slate-700">
-    <label class="sr-only" for="prompt">Prompt</label>
-    <input id="prompt" type="text" required
-           class="w-full px-4 py-3 rounded-lg bg-slate-800 placeholder-slate-500 focus:outline-none"
-           placeholder="Ask me anything…" autocomplete="off">
-  </form>
+<form id="inputForm" class="p-4 border-t border-slate-700">
+  <label class="sr-only" for="prompt">Prompt</label>
+  <input id="prompt" type="text" required autocomplete="off"
+         class="w-full px-4 py-3 rounded-lg bg-slate-800 placeholder-slate-500 focus:outline-none"
+         placeholder="Ask me anything…">
+</form>
 
-  <!-- WebLLM + app logic -->
-  <script type="module">
-    import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.79";
-    const MODEL_ID = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC";
-    const chatEl   = document.getElementById("chat");
-    const form     = document.getElementById("inputForm");
-    const promptIn = document.getElementById("prompt");
-    const dlBarWrap= document.getElementById("dlBarWrap");
-    const dlBar    = document.getElementById("dlBar");
-    const dlBarTxt = document.getElementById("dlBarText");
-    const msgs     = [];
+<!-- ─────── WebLLM + App Logic ─────── -->
+<script type="module">
+import * as webllm from "https://esm.run/@mlc-ai/web-llm@0.2.79";
 
-    let engine;
+const MODEL_ID = "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC";      // swap to SmolLM-360M-q0f32 for 70 MB model
+const chatEl   = document.getElementById("chat");
+const form     = document.getElementById("inputForm");
+const promptIn = document.getElementById("prompt");
+const dlWrap   = document.getElementById("dlBarWrap");
+const dlBar    = document.getElementById("dlBar");
+const dlText   = document.getElementById("dlBarText");
+const msgs     = [];
 
-    // HTML escape (security best-practice)
-    const escape = s => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]);
+let engine;
 
-    function render() {
-      chatEl.innerHTML = msgs.map(m =>
-        `<div class="flex ${m.role==='user'?'justify-end':''}">
-           <div class="px-4 py-2 rounded-lg max-w-prose whitespace-pre-line
-               ${m.role==='user'?'bg-blue-600':'bg-slate-700'}">${escape(m.content)}</div>
-         </div>`
-      ).join("");
-      chatEl.scrollTop = chatEl.scrollHeight;
-    }
+/* ── Helpers ───────────────────────────────────────── */
+const esc = s => s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-    async function streamReply() {
-      const reply = { role:"assistant", content:"" };
-      msgs.push(reply); render();
-      const stream = await engine.chat.completions.create({
-        messages: msgs, stream: true
-      });
-      for await (const {choices:[{delta:{content=''}}]} of stream) {
-        reply.content += content; render();
-      }
-    }
+function render(){
+  chatEl.innerHTML = msgs.map(m=>`
+    <div class="flex ${m.role==='user'?'justify-end':''}">
+      <div class="px-4 py-2 rounded-lg max-w-prose whitespace-pre-line
+         ${m.role==='user'?'bg-blue-600':'bg-slate-700'}">${esc(m.content)}</div>
+    </div>`).join("");
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
 
-    // --- INITIALIZE: Model, Progress Bar, UI ---
-    (async () => {
-      promptIn.disabled = true;
-      promptIn.placeholder = "Downloading model… first load may take a few minutes.";
+async function streamReply(){
+  const reply={role:"assistant",content:""}; msgs.push(reply); render();
+  const stream=await engine.chat.completions.create({messages:msgs,stream:true});
+  for await (const {choices:[{delta:{content=''}}]} of stream){ reply.content+=content; render(); }
+}
 
-      engine = new webllm.Engine();
+/* ── Init Engine + Progress UI ─────────────────────── */
+(async()=>{
+  promptIn.disabled=true;
+  promptIn.placeholder="Downloading model… first load may take a few minutes.";
 
-      // Live download progress callback
-      engine.setInitProgressCallback(({progress,total})=>{
-        const pct = total ? Math.round(progress/total*100) : 0;
-        dlBar.style.width = pct + "%";
-        dlBarTxt.textContent = pct > 0
-          ? `Downloading model… ${pct} %`
-          : "Downloading model…";
-      });
+  engine = new webllm.Engine();
 
-      try {
-        await engine.init(MODEL_ID);
-      } catch (e) {
-        promptIn.placeholder = "❌ Model failed. Check console.";
-        dlBarTxt.textContent = "❌ Download failed.";
-        dlBar.style.background = "#ef4444";
-        return;
-      }
+  engine.setInitProgressCallback(({progress,total})=>{
+    const pct = total ? Math.round(progress/total*100) : 0;
+    dlBar.style.width = pct+"%";
+    dlText.textContent = pct ? `Downloading model… ${pct} %` : "Downloading model…";
+  });
 
-      // Model ready: hide bar, enable input
-      setTimeout(()=>dlBarWrap.classList.add("hide"), 600);
-      promptIn.placeholder = "Ask me anything…";
-      promptIn.disabled = false;
-      promptIn.focus();
-    })();
+  try{ await engine.init(MODEL_ID); }
+  catch(e){
+    promptIn.placeholder="❌ Model failed. See console.";
+    dlText.textContent="❌ Download failed.";
+    dlBar.style.background="#ef4444";
+    console.error(e);
+    return;
+  }
 
-    // --- Chat submit ---
-    form.addEventListener("submit", async e => {
-      e.preventDefault();
-      const text = promptIn.value.trim();
-      if (!text) return;
-      msgs.push({ role:"user", content:text });
-      promptIn.value = ""; render();
-      try { await streamReply(); }
-      catch (err) {
-        msgs.push({ role:"assistant", content:`⚠️ Error: ${err.message}` });
-        render();
+  setTimeout(()=>dlWrap.classList.add("hide"),600);
+  promptIn.placeholder="Ask me anything…";
+  promptIn.disabled=false; promptIn.focus();
+})();
+
+/* ── Handle Submit ─────────────────────────────────── */
+form.addEventListener("submit",async e=>{
+  e.preventDefault();
+  const text=promptIn.value.trim();
+  if(!text) return;
+  msgs.push({role:"user",content:text});
+  promptIn.value=""; render();
+  try{ await streamReply(); }
+  catch(err){ msgs.push({role:"assistant",content:`⚠️ Error: ${err.message}`}); render(); }
+});
+
+/* ── Inline Service-Worker (model-cache only) ──────── */
+if("serviceWorker" in navigator){
+  const swSrc = `
+    const CACHE="model-cache-v1";
+    self.addEventListener("install",e=>self.skipWaiting());
+    self.addEventListener("fetch",e=>{
+      const url=e.request.url;
+      if(url.includes("mlc-models")||url.endsWith(".params")||url.endsWith(".json")){
+        e.respondWith(caches.open(CACHE).then(c=>c.match(e.request).then(r=>r||fetch(e.request).then(res=>{
+          c.put(e.request,res.clone()); return res;
+        }))));
       }
     });
-  </script>
+  `;
+  navigator.serviceWorker.register(URL.createObjectURL(new Blob([swSrc],{type:"text/javascript"})));
+}
+</script>
 </body>
 </html>
